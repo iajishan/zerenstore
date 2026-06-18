@@ -1,8 +1,9 @@
 const express = require('express');
 const cors = require('cors');
+const path = require('path'); // Added for path handling
 
 const app = express();
-const PORT = 5000;
+const PORT = process.env.PORT || 5000; // CHANGED: Now uses environment variable for Render
 
 // Middleware Configuration
 app.use(express.json());
@@ -32,38 +33,18 @@ let orders = [
   }
 ];
 
-// Counter tracking system
 let nextProductId = 4;
 let nextOrderId = 1002;
 
 // ==========================================
 // 1. PRODUCTS COMPONENT PIPELINES
 // ==========================================
-
-app.get('/api/products', (req, res) => {
-  res.status(200).json(products);
-});
+app.get('/api/products', (req, res) => res.status(200).json(products));
 
 app.post('/api/products', (req, res) => {
   const { name, category, price, stock, description, imageUrl } = req.body;
-  
-  if (!name || !price || stock === undefined) {
-    return res.status(400).json({ error: "Missing required catalog fields." });
-  }
-
-  const newProduct = {
-    id: nextProductId++,
-    name,
-    category: category || "Classic T-Shirts",
-    price: Number(price),
-    stock: Number(stock),
-    sold: 0,
-    description: description || "",
-    imageUrl: imageUrl || "", 
-    color: "#222222",
-    accent: "New Drop"
-  };
-
+  if (!name || !price || stock === undefined) return res.status(400).json({ error: "Missing required catalog fields." });
+  const newProduct = { id: nextProductId++, name, category: category || "Classic T-Shirts", price: Number(price), stock: Number(stock), sold: 0, description: description || "", imageUrl: imageUrl || "", color: "#222222", accent: "New Drop" };
   products.push(newProduct);
   res.status(201).json(newProduct);
 });
@@ -71,12 +52,8 @@ app.post('/api/products', (req, res) => {
 app.patch('/api/products/:id/stock', (req, res) => {
   const prodId = Number(req.params.id);
   const { amount } = req.body;
-
   const product = products.find(p => p.id === prodId);
-  if (!product) {
-    return res.status(404).json({ error: "Product item matrix not found." });
-  }
-
+  if (!product) return res.status(404).json({ error: "Product item matrix not found." });
   product.stock = Math.max(0, product.stock + Number(amount));
   res.status(200).json(product);
 });
@@ -84,112 +61,63 @@ app.patch('/api/products/:id/stock', (req, res) => {
 app.delete('/api/products/:id', (req, res) => {
   const prodId = Number(req.params.id);
   const index = products.findIndex(p => p.id === prodId);
-
-  if (index !== -1) {
-    products.splice(index, 1);
-    return res.status(200).json({ success: true, message: "Product entry wiped safely." });
-  }
+  if (index !== -1) { products.splice(index, 1); return res.status(200).json({ success: true, message: "Product entry wiped safely." }); }
   res.status(404).json({ error: "Product item targeted for removal not found." });
 });
 
 // ==========================================
 // 2. ORDERS & CHECKOUT MANAGEMENT ENDPOINTS
 // ==========================================
-
-app.get('/api/orders', (req, res) => {
-  res.status(200).json(orders);
-});
+app.get('/api/orders', (req, res) => res.status(200).json(orders));
 
 app.post('/api/checkout', (req, res) => {
   const { name, phone, address, thana, items } = req.body;
-
-  if (!name || !phone || !address || !thana || !items || items.length === 0) {
-    return res.status(400).json({ error: "Incomplete shipping or cart allocation data." });
-  }
-
+  if (!name || !phone || !address || !thana || !items || items.length === 0) return res.status(400).json({ error: "Incomplete shipping or cart allocation data." });
   let computedTotal = 0;
-  
   items.forEach(cartItem => {
     computedTotal += (cartItem.price * cartItem.qty);
     const storeProduct = products.find(p => p.id === cartItem.id);
-    if (storeProduct) {
-      storeProduct.stock = Math.max(0, storeProduct.stock - cartItem.qty);
-      storeProduct.sold = (storeProduct.sold || 0) + cartItem.qty;
-    }
+    if (storeProduct) { storeProduct.stock = Math.max(0, storeProduct.stock - cartItem.qty); storeProduct.sold = (storeProduct.sold || 0) + cartItem.qty; }
   });
-
-  const newOrder = {
-    id: nextOrderId++,
-    name,
-    phone,
-    address,
-    thana,
-    items: items.map(i => ({ name: i.name, qty: i.qty, price: i.price })),
-    total: computedTotal,
-    status: "Pending"
-  };
-
+  const newOrder = { id: nextOrderId++, name, phone, address, thana, items: items.map(i => ({ name: i.name, qty: i.qty, price: i.price })), total: computedTotal, status: "Pending" };
   orders.push(newOrder);
   res.status(201).json(newOrder);
 });
 
 app.put('/api/orders/:id', (req, res) => {
   const orderId = Number(req.params.id);
-  const { name, phone, address, thana, items, total } = req.body;
-
   const order = orders.find(o => o.id === orderId);
-  if (!order) {
-    return res.status(404).json({ error: "Target invoice order assignment missing." });
-  }
-
-  order.name = name || order.name;
-  order.phone = phone || order.phone;
-  order.address = address || order.address;
-  order.thana = thana || order.thana;
-  order.items = items || order.items;
-  order.total = total !== undefined ? Number(total) : order.total;
-
+  if (!order) return res.status(404).json({ error: "Target invoice order assignment missing." });
+  Object.assign(order, req.body);
   res.status(200).json(order);
 });
 
 app.patch('/api/orders/:id/status', (req, res) => {
-  const orderId = Number(req.params.id);
-  const order = orders.find(o => o.id === orderId);
-
-  if (!order) {
-    return res.status(404).json({ error: "Target invoice dataset not found." });
-  }
-
-  if (order.status === "Pending") {
-    order.status = "Processing";
-  } else if (order.status === "Processing") {
-    order.status = "Shipped";
-  } else {
-    order.status = "Pending";
-  }
-
+  const order = orders.find(o => o.id === Number(req.params.id));
+  if (!order) return res.status(404).json({ error: "Target invoice dataset not found." });
+  const statuses = ["Pending", "Processing", "Shipped"];
+  order.status = statuses[(statuses.indexOf(order.status) + 1) % statuses.length];
   res.status(200).json(order);
 });
 
 app.delete('/api/orders/:id', (req, res) => {
-  const orderId = Number(req.params.id);
-  const orderIndex = orders.findIndex(o => o.id === orderId);
+  const orderIndex = orders.findIndex(o => o.id === Number(req.params.id));
+  if (orderIndex !== -1) { orders.splice(orderIndex, 1); return res.status(200).json({ success: true, message: "Order removed safely from server database." }); }
+  res.status(404).json({ error: "Targeted order entry not found." });
+});
 
-  if (orderIndex !== -1) {
-    orders.splice(orderIndex, 1);
-    return res.status(200).json({ success: true, message: "Order removed safely from server database." });
-  } else {
-    return res.status(404).json({ error: "Targeted order entry not found." });
-  }
-});
-const path = require('path');
-app.use(express.static(path.join(__dirname)));
+// ==========================================
+// 3. STATIC FILE SERVING (NEW)
+// ==========================================
+// CHANGE: Serve only the 'public' folder instead of the whole root directory
+app.use(express.static(path.join(__dirname, 'public')));
+
 app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'index.html'));
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
+
 app.listen(PORT, () => {
   console.log(`=================================================`);
   console.log(` Ƶ ZERÉN ENGINE PIPELINE ONLINE ON PORT: ${PORT} `);
-  console.log(` API Endpoint: http://localhost:${PORT}/api      `);
   console.log(`=================================================`);
 });

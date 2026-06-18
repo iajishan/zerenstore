@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Zerén — Less Noise. More You.</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&family=Montserrat:wght@300;400;500;600&display=swap" rel="stylesheet" />
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --charcoal: #1a1a1a;
+    --matte-black: #0d0d0d;
+    --cream: #f5f0e8;
+    --gold: #c9a84c;
+    --gold-light: #e2c97e;
+    --white: #fafafa;
+    --mid-gray: #4a4a4a;
+    --light-gray: #888;
+  }
+  body { background: var(--matte-black); color: var(--cream); font-family: 'Montserrat', sans-serif; overflow-x: hidden; }
+  .font-display { font-family: 'Cormorant Garamond', serif; }
+  .gold { color: var(--gold); }
+  .bg-gold { background: var(--gold); }
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: var(--matte-black); }
+  ::-webkit-scrollbar-thumb { background: var(--gold); border-radius: 2px; }
+  .nav-glass { background: rgba(13,13,13,0.92); backdrop-filter: blur(20px); border-bottom: 1px solid rgba(201,168,76,0.15); }
+  .hero-bg {
+    background: radial-gradient(ellipse at 20% 50%, rgba(201,168,76,0.08) 0%, transparent 60%),
+                radial-gradient(ellipse at 80% 20%, rgba(201,168,76,0.05) 0%, transparent 50%),
+                linear-gradient(135deg, #0d0d0d 0%, #1a1a1a 50%, #0d0d0d 100%);
+  }
+  .hero-line { width: 1px; height: 60px; background: linear-gradient(to bottom, transparent, var(--gold), transparent); }
+  .product-card { background: rgba(26,26,26,0.8); border: 1px solid rgba(201,168,76,0.1); transition: all 0.4s cubic-bezier(0.25,0.46,0.45,0.94); }
+  .product-card:hover { border-color: rgba(201,168,76,0.4); transform: translateY(-4px); box-shadow: 0 20px 60px rgba(0,0,0,0.5), 0 0 0 1px rgba(201,168,76,0.15); }
+  .card-overlay { background: linear-gradient(to top, rgba(13,13,13,0.95) 0%, rgba(13,13,13,0.6) 50%, transparent 100%); opacity: 0; transition: opacity 0.4s ease; }
+  .product-card:hover .card-overlay { opacity: 1; }
+  .card-img-wrap { overflow: hidden; }
+  .card-img { transition: transform 0.6s cubic-bezier(0.25,0.46,0.45,0.94); }
+  .product-card:hover .card-img { transform: scale(1.06); }
+  .btn-gold { background: linear-gradient(135deg, var(--gold) 0%, var(--gold-light) 100%); color: var(--matte-black); font-family: 'Montserrat', sans-serif; font-weight: 600; letter-spacing: 0.1em; transition: all 0.3s ease; }
+  .btn-gold:hover { box-shadow: 0 0 30px rgba(201,168,76,0.4); transform: translateY(-1px); }
+  .btn-outline { border: 1px solid rgba(201,168,76,0.5); color: var(--gold); background: transparent; transition: all 0.3s ease; }
+  .btn-outline:hover { background: rgba(201,168,76,0.1); border-color: var(--gold); }
+  .filter-pill { border: 1px solid rgba(201,168,76,0.2); color: var(--light-gray); background: transparent; transition: all 0.3s ease; cursor: pointer; }
+  .filter-pill:hover { border-color: rgba(201,168,76,0.5); color: var(--cream); }
+  .filter-pill.active { background: var(--gold); color: var(--matte-black); border-color: var(--gold); font-weight: 600; }
+  .cart-drawer { position: fixed; top: 0; right: 0; height: 100vh; width: 420px; max-width: 100vw; background: #111; border-left: 1px solid rgba(201,168,76,0.2); z-index: 1000; transform: translateX(100%); transition: transform 0.45s cubic-bezier(0.25,0.46,0.45,0.94); }
+  .cart-drawer.open { transform: translateX(0); }
+  .overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 999; opacity: 0; pointer-events: none; transition: opacity 0.4s ease; }
+  .overlay.show { opacity: 1; pointer-events: all; }
+  .modal-bg { position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 1100; display: flex; align-items: flex-start; justify-content: center; padding: 24px 0; overflow-y: auto; }
+  .modal-box { background: #111; border: 1px solid rgba(201,168,76,0.25); max-width: 640px; width: 92%; overflow-y: visible; }
+  .input-field { background: rgba(255,255,255,0.04); border: 1px solid rgba(201,168,76,0.2); color: var(--cream); width: 100%; font-family: 'Montserrat', sans-serif; transition: border-color 0.3s ease; outline: none; }
+  .input-field:focus { border-color: var(--gold); }
+  .input-field::placeholder { color: rgba(245,240,232,0.3); }
+  @keyframes fadeUp { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: translateY(0); } }
+  @keyframes shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
+  @keyframes scaleIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
+  .fade-up { animation: fadeUp 0.7s ease both; }
+  .fade-up-1 { animation: fadeUp 0.7s 0.1s ease both; }
+  .fade-up-2 { animation: fadeUp 0.7s 0.2s ease both; }
+  .fade-up-3 { animation: fadeUp 0.7s 0.35s ease both; }
+  .scale-in { animation: scaleIn 0.3s ease both; }
+  .gold-divider { height: 1px; background: linear-gradient(to right, transparent, var(--gold), transparent); }
+  .product-img-placeholder {
+    background: linear-gradient(135deg, #1a1a1a 0%, #252525 50%, #1a1a1a 100%);
+    display: flex; align-items: center; justify-content: center; position: relative; overflow: hidden;
+  }
+  .product-img-placeholder::after {
+    content: ''; position: absolute; inset: 0;
+    background: linear-gradient(90deg, transparent, rgba(201,168,76,0.03), transparent);
+    background-size: 200% 100%; animation: shimmer 3s infinite;
+  }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useEffect } = React;
+const API_URL = 'http://localhost:5000/api';
+
+const formatBDT = n => `৳${(n || 0).toLocaleString('en-BD')}`;
+
+const Icon = ({ name, size=20, ...p }) => {
+  const icons = {
+    cart: <svg width={size} height={size} fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 01-8 0"/></svg>,
+    close: <svg width={size} height={size} fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>,
+    trash: <svg width={size} height={size} fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>,
+    plus: <svg width={size} height={size} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>,
+    minus: <svg width={size} height={size} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><line x1="5" y1="12" x2="19" y2="12"/></svg>,
+  };
+  return <span {...p}>{icons[name]}</span>;
+};
+
+const ProductImg = ({ imageUrl, color, accent }) => (
+  <div className="product-img-placeholder w-full h-full overflow-hidden">
+    {imageUrl ? (
+      <img src={imageUrl} alt="Product" className="w-full h-full object-cover" />
+    ) : (
+      <div className="w-full h-full flex flex-col items-center justify-center" style={{background:`linear-gradient(135deg, ${color || '#1a1a1a'} 0%, ${color || '#1a1a1a'}cc 100%)`}}>
+        <div style={{textAlign:'center', opacity:0.35}}>
+          <div style={{fontFamily:'Cormorant Garamond,serif', fontSize:'1rem', color:'#c9a84c', letterSpacing:'0.2em', textTransform:'uppercase'}}>{accent || 'Premium'}</div>
+          <div style={{width:40, height:1, background:'#c9a84c', margin:'8px auto', opacity:0.5}}></div>
+          <div style={{fontFamily:'Cormorant Garamond,serif', fontSize:'1.6rem', color:'#c9a84c', opacity:0.6}}>Ƶ</div>
+        </div>
+      </div>
+    )}
+  </div>
+);
+
+const ProductCard = ({ item, onAdd, onBuyNow, onView }) => (
+  <div className="product-card rounded-sm overflow-hidden cursor-pointer" onClick={() => onView(item)}>
+    <div className="card-img-wrap relative" style={{height:260}}>
+      <div className="card-img w-full h-full">
+        <ProductImg imageUrl={item.imageUrl} color={item.color} accent={item.accent} />
+      </div>
+      <div className="card-overlay absolute inset-0 flex flex-col justify-end gap-2 p-4">
+        <button onClick={(e) => { e.stopPropagation(); onBuyNow(item); }} className="btn-gold w-full py-2 text-xs tracking-widest uppercase rounded-sm" disabled={item.stock <= 0}>
+          {item.stock > 0 ? 'Order Now' : 'Out of Stock'}
+        </button>
+        <button onClick={(e) => { e.stopPropagation(); onAdd(item); }} className="btn-outline w-full py-2 text-xs tracking-widest uppercase rounded-sm text-white border-white/40 bg-black/40 hover:bg-black/80" disabled={item.stock <= 0}>
+          {item.stock > 0 ? 'Add to Cart' : 'Out of Stock'}
+        </button>
+      </div>
+    </div>
+    <div className="p-4">
+      <p className="font-display text-lg text-cream leading-tight mb-1" style={{color:'#f5f0e8'}}>{item.name}</p>
+      <p className="text-xs text-gray-500 uppercase tracking-widest mb-3">{item.category}</p>
+      <div className="flex items-center justify-between">
+        <span className="font-display text-xl gold font-medium">{formatBDT(item.price)}</span>
+        <span className="text-[10px] uppercase text-zinc-500 tracking-wider">
+          {item.stock > 0 ? `${item.stock} left` : 'Sold Out'}
+        </span>
+      </div>
+    </div>
+  </div>
+);
+
+const ProductDetailsModal = ({ item, onClose, onAdd, onBuyNow }) => {
+  if (!item) return null;
+  return (
+    <div className="modal-bg" onClick={onClose}>
+      <div className="modal-box scale-in max-w-2xl w-11/12 rounded-sm p-0 overflow-hidden" onClick={e => e.stopPropagation()}>
+        <div className="grid md:grid-cols-2">
+          <div className="h-64 md:h-full min-h-[320px]">
+            <ProductImg imageUrl={item.imageUrl} color={item.color} accent={item.accent} />
+          </div>
+          <div className="p-6 md:p-8 flex flex-col justify-between space-y-6">
+            <div>
+              <div className="flex justify-between items-start">
+                <span className="text-xs text-gold uppercase tracking-widest font-medium">{item.category}</span>
+                <button onClick={onClose} className="text-zinc-500 hover:text-white text-xl">&times;</button>
+              </div>
+              <h2 className="font-display text-3xl text-cream mt-2 font-light leading-tight">{item.name}</h2>
+              <p className="font-display text-2xl gold font-semibold mt-4">{formatBDT(item.price)}</p>
+              
+              <div className="mt-6 pt-4 border-t border-zinc-800/60 space-y-2">
+                <p className="text-sm text-zinc-300 leading-relaxed font-sans font-light">
+                  {item.description || "No customized details profile updated for this capsule catalog item."}
+                </p>
+                <div className="pt-4 flex items-center gap-2">
+                  <span className="inline-block w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                  <p className="text-xs tracking-wider uppercase text-zinc-400">
+                    Stock Availability: <span className="text-white font-mono font-bold">{item.stock} left in inventory</span>
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-2.5 pt-4">
+              <button 
+                onClick={() => { onBuyNow(item); onClose(); }} 
+                className="btn-gold w-full py-3.5 text-xs uppercase tracking-widest rounded-sm"
+                disabled={item.stock <= 0}
+              >
+                {item.stock > 0 ? 'Order Now (Instant Checkout)' : 'Out of Stock'}
+              </button>
+              <button 
+                onClick={() => { onAdd(item); }} 
+                className="btn-outline w-full py-3 text-xs uppercase tracking-widest rounded-sm text-zinc-300 border-zinc-700 hover:border-gold"
+                disabled={item.stock <= 0}
+              >
+                {item.stock > 0 ? 'Add to Cart' : 'Out of Stock'}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ... (Rest of your component logic remains exactly the same)
+// Keeping the FilterBar, HomePage, CatalogPage, CartDrawer, CheckoutModal, SuccessPopup, and App components as they were.
+
+const FilterBar = ({ cats, active, onChange }) => (
+  <div className="flex flex-wrap gap-2 mb-8">
+    {cats.map(c => (
+      <button key={c} className={`filter-pill text-xs px-4 py-2 rounded-sm tracking-widest uppercase ${active===c?'active':''}`} onClick={()=>onChange(c)}>{c}</button>
+    ))}
+  </div>
+);
+
+const HomePage = ({ products, onAdd, onBuyNow, onView, goTo }) => {
+  const featured = [...products].reverse().slice(0, 4);
+  return (
+    <div>
+      <section className="hero-bg min-h-screen flex flex-col items-center justify-center text-center px-6 relative overflow-hidden">
+        <div style={{position:'absolute', top:0, left:0, right:0, bottom:0, backgroundImage:'radial-gradient(circle at 1px 1px, rgba(201,168,76,0.06) 1px, transparent 0)', backgroundSize:'40px 40px'}}></div>
+        <div className="relative z-10">
+          <p className="fade-up text-xs tracking-widest uppercase mb-6" style={{color:'#c9a84c', letterSpacing:'0.4em'}}>Bangladesh — 2026</p>
+          <div className="hero-line mx-auto mb-6 fade-up-1"></div>
+          <h1 className="fade-up-1 font-display mb-4" style={{fontSize:'clamp(3rem,10vw,7rem)', color:'#f5f0e8', lineHeight:1.05, fontWeight:300, letterSpacing:'-0.01em'}}>
+            Less Noise.<br /><em style={{color:'#c9a84c'}}>More You.</em>
+          </h1>
+          <div className="hero-line mx-auto mb-6 fade-up-2"></div>
+          <p className="fade-up-2 text-sm tracking-widest uppercase mb-10" style={{color:'#888', letterSpacing:'0.3em'}}>Premium Unisex Clothing — Drop 001</p>
+          <button onClick={()=>goTo('all')} className="fade-up-3 btn-gold px-10 py-4 text-xs tracking-widest uppercase rounded-sm">
+            Shop the Latest Drop
+          </button>
+        </div>
+      </section>
+      <section className="py-24 px-6" style={{background:'#0f0f0f'}}>
+        <div className="max-w-6xl mx-auto">
+          <div className="text-center mb-16">
+            <p className="text-xs tracking-widest uppercase mb-3" style={{color:'#c9a84c', letterSpacing:'0.35em'}}>Curated Selection</p>
+            <h2 className="font-display text-4xl md:text-5xl" style={{color:'#f5f0e8', fontWeight:300}}>Featured Collection</h2>
+            <div className="gold-divider mt-6 max-w-xs mx-auto"></div>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {featured.map(item => <ProductCard key={item.id} item={item} onAdd={onAdd} onBuyNow={onBuyNow} onView={onView} />)}
+          </div>
+        </div>
+      </section>
+    </div>
+  );
+};
+
+const CatalogPage = ({ categoryTitle, categoryKey, products, onAdd, onBuyNow, onView }) => {
+  const cats = ['All', 'Classic T-Shirts', 'Drop Shoulder', 'Panjabi', 'Jerseys'];
+  const [active, setActive] = useState(categoryKey || 'All');
+  
+  const filtered = active === 'All' 
+    ? products 
+    : products.filter(p => {
+        if(!p.category) return false;
+        const cat = p.category.toLowerCase().trim();
+        const act = active.toLowerCase().trim();
+        return cat.includes(act) || act.includes(cat) || (act === 'tees' && cat.includes('shirt'));
+      });
+
+  return (
+    <div className="max-w-6xl mx-auto px-6 py-16">
+      <div className="mb-12">
+        <h2 className="font-display text-4xl md:text-5xl mb-2 text-cream font-light">{categoryTitle || 'Store Catalog'}</h2>
+        <div className="gold-divider mt-4 max-w-sm"></div>
+      </div>
+      <FilterBar cats={cats} active={active} onChange={setActive} />
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+        {[...filtered].reverse().map(item => <ProductCard key={item.id} item={item} onAdd={onAdd} onBuyNow={onBuyNow} onView={onView} />)}
+      </div>
+    </div>
+  );
+};
+
+const CartDrawer = ({ open, onClose, cart, onRemove, onQty, onCheckout }) => {
+  const total = cart.reduce((s,i)=>s+i.price*i.qty,0);
+  return (
+    <>
+      <div className={`overlay ${open?'show':''}`} onClick={onClose} />
+      <div className={`cart-drawer flex flex-col ${open?'open':''}`}>
+        <div className="flex items-center justify-between px-6 py-5" style={{borderBottom:'1px solid rgba(201,168,76,0.15)'}}>
+          <h3 className="font-display text-xl" style={{color:'#f5f0e8'}}>Your Cart</h3>
+          <button onClick={onClose} className="text-gray-500 hover:text-gold transition-colors"><Icon name="close" size={20} /></button>
+        </div>
+        <div className="flex-1 overflow-y-auto px-6 py-4">
+          {cart.length===0 ? (
+            <div className="text-center py-16" style={{color:'#555'}}>
+              <p className="font-display text-2xl mb-2">Empty</p>
+            </div>
+          ) : cart.map(item=>(
+            <div key={item.id} className="flex gap-4 py-4" style={{borderBottom:'1px solid rgba(255,255,255,0.05)'}}>
+              <div className="flex-1 min-w-0">
+                <p className="font-display text-base truncate text-cream">{item.name}</p>
+                <div className="flex items-center gap-3 mt-2">
+                  <button onClick={()=>onQty(item.id,-1)} className="w-6 h-6 flex items-center justify-center rounded-sm text-gold border border-amber-500/30">
+                    <Icon name="minus" size={12} />
+                  </button>
+                  <span className="text-sm text-cream">{item.qty}</span>
+                  <button onClick={()=>onQty(item.id,1)} className="w-6 h-6 flex items-center justify-center rounded-sm text-gold border border-amber-500/30">
+                    <Icon name="plus" size={12} />
+                  </button>
+                </div>
+              </div>
+              <div className="flex flex-col items-end justify-between">
+                <span className="gold font-display text-lg">{formatBDT(item.price*item.qty)}</span>
+                <button onClick={()=>onRemove(item.id)} className="text-gray-600 hover:text-red-400"><Icon name="trash" size={14} /></button>
+              </div>
+            </div>
+          ))}
+        </div>
+        {cart.length>0 && (
+          <div className="px-6 py-5" style={{borderTop:'1px solid rgba(201,168,76,0.15)'}}>
+            <div className="flex justify-between mb-4">
+              <span className="gold font-display text-2xl">{formatBDT(total)}</span>
+            </div>
+            <button onClick={onCheckout} className="btn-gold w-full py-4 text-xs tracking-widest uppercase rounded-sm">
+              Place Order
+            </button>
+          </div>
+        )}
+      </div>
+    </>
+  );
+};
+
+const CheckoutModal = ({ cart, onClose, onConfirm }) => {
+  const [form, setForm] = useState({name:'',phone:'',address:'',thana:''});
+  const total = cart.reduce((s,i)=>s+i.price*i.qty,0);
+  
+  const submit = () => {
+    if(!form.name || !form.phone || !form.address || !form.thana) return alert('Fill all fields');
+    onConfirm(form);
+  };
+
+  return (
+    <div className="modal-bg">
+      <div className="modal-box scale-in p-8 space-y-4">
+        <h3 className="font-display text-2xl text-cream">Delivery Information</h3>
+        <input className="input-field px-4 py-3 text-sm rounded-sm" placeholder="Full Name" value={form.name} onChange={e=>setForm({...form,name:e.target.value})}/>
+        <input className="input-field px-4 py-3 text-sm rounded-sm" placeholder="Phone Number" value={form.phone} onChange={e=>setForm({...form,phone:e.target.value})}/>
+        <textarea className="input-field px-4 py-3 text-sm rounded-sm" placeholder="Address" value={form.address} onChange={e=>setForm({...form,address:e.target.value})}/>
+        <input className="input-field px-4 py-3 text-sm rounded-sm" placeholder="Thana" value={form.thana} onChange={e=>setForm({...form,thana:e.target.value})}/>
+        
+        <button onClick={submit} className="btn-gold w-full py-4 text-xs uppercase rounded-sm">Confirm Order ({formatBDT(total)})</button>
+        <button onClick={onClose} className="w-full text-xs text-zinc-500 uppercase mt-2">Cancel</button>
+      </div>
+    </div>
+  );
+};
+
+const SuccessPopup = ({ orderId, onClose }) => (
+  <div className="modal-bg" style={{alignItems:"center"}}>
+    <div className="scale-in rounded-sm p-10 bg-neutral-900 border border-amber-500 text-center max-w-sm w-full space-y-4">
+      <h3 className="font-display text-3xl text-cream leading-tight">Order Placed!</h3>
+      <div>
+        <p className="text-[11px] uppercase tracking-wider text-zinc-500 mb-0.5">Invoice Assignment</p>
+        <p className="gold font-mono text-sm font-semibold">ID: #{orderId}</p>
+      </div>
+      <p className="text-xs text-zinc-300 leading-relaxed pt-2 border-t border-zinc-800/80">
+        A team member will call you within <span className="text-white font-medium">48 hours</span> to verify shipping metrics and confirm deployment.
+      </p>
+      <button onClick={onClose} className="btn-gold w-full py-3 text-xs uppercase tracking-widest rounded-sm mt-2">Done</button>
+    </div>
+  </div>
+);
+
+const App = () => {
+  const [page, setPage] = useState('home');
+  const [products, setProducts] = useState([]);
+  const [cart, setCart] = useState([]);
+  const [cartOpen, setCartOpen] = useState(false);
+  const [checkoutOpen, setCheckoutOpen] = useState(false);
+  const [successOrder, setSuccessOrder] = useState(null);
+  const [viewedProduct, setViewedProduct] = useState(null);
+
+  useEffect(() => {
+    fetchProducts();
+    const interval = setInterval(fetchProducts, 5000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const fetchProducts = () => {
+    fetch(`${API_URL}/products`)
+      .then(res => res.json())
+      .then(data => setProducts(data))
+      .catch(err => console.error("Could not link pipeline catalog:", err));
+  };
+
+  const addToCart = (item) => {
+    setCart(prev => {
+      const existing = prev.find(i=>i.id===item.id);
+      if(existing) return prev.map(i=>i.id===item.id?{...i,qty:i.qty+1}:i);
+      return [...prev, {...item, qty:1}];
+    });
+    setCartOpen(true);
+  };
+
+  const handleBuyNow = (item) => {
+    setCart([{ ...item, qty: 1 }]);
+    setCheckoutOpen(true);
+  };
+
+  const updateQty = (id, delta) => {
+    setCart(prev=>prev.map(i=>i.id===id?{...i,qty:Math.max(1,i.qty+delta)}:i));
+  };
+
+  const confirmOrder = (form) => {
+    fetch(`${API_URL}/checkout`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...form, items: cart })
+    })
+    .then(res => res.json())
+    .then(order => {
+      setSuccessOrder(order.id);
+      setCart([]);
+      setCheckoutOpen(false);
+      fetchProducts(); 
+    });
+  };
+
+  return (
+    <div className="pt-16">
+      <nav className="nav-glass fixed top-0 left-0 right-0 h-16 flex items-center justify-between px-6 z-50">
+        <button onClick={()=>setPage('home')} className="font-display text-2xl gold">Ƶ Zerén</button>
+        <div className="flex gap-4 text-xs uppercase tracking-widest">
+          <button onClick={()=>setPage('all')} className="text-zinc-400 hover:text-white">All Items</button>
+          <button onClick={()=>setPage('tees')} className="text-zinc-400 hover:text-white">Tees</button>
+          <button onClick={()=>setPage('panjabi')} className="text-zinc-400 hover:text-white">Panjabi</button>
+          <button onClick={()=>setPage('jerseys')} className="text-zinc-400 hover:text-white">Jerseys</button>
+        </div>
+        <button onClick={()=>setCartOpen(true)} className="text-gold relative">
+          <Icon name="cart"/>
+          <span className="absolute -top-2 -right-2 bg-gold text-black rounded-full text-[10px] w-4 h-4 flex items-center justify-center">{cart.reduce((s,i)=>s+i.qty,0)}</span>
+        </button>
+      </nav>
+
+      <main>
+        {page === 'home' && <HomePage products={products} onAdd={addToCart} onBuyNow={handleBuyNow} onView={setViewedProduct} goTo={setPage} />}
+        {page === 'all' && <CatalogPage categoryTitle="Complete Collection" categoryKey="All" products={products} onAdd={addToCart} onBuyNow={handleBuyNow} onView={setViewedProduct} />}
+        {page === 'tees' && <CatalogPage categoryTitle="T-Shirts Collection" categoryKey="Classic T-Shirts" products={products} onAdd={addToCart} onBuyNow={handleBuyNow} onView={setViewedProduct} />}
+        {page === 'panjabi' && <CatalogPage categoryTitle="Premium Panjabi" categoryKey="Panjabi" products={products} onAdd={addToCart} onBuyNow={handleBuyNow} onView={setViewedProduct} />}
+        {page === 'jerseys' && <CatalogPage categoryTitle="Performance Jerseys" categoryKey="Jerseys" products={products} onAdd={addToCart} onBuyNow={handleBuyNow} onView={setViewedProduct} />}
+      </main>
+
+      <CartDrawer open={cartOpen} onClose={()=>setCartOpen(false)} cart={cart} onRemove={id=>setCart(cart.filter(i=>i.id!==id))} onQty={updateQty} onCheckout={()=>{setCartOpen(false); setCheckoutOpen(true);}} />
+      {checkoutOpen && <CheckoutModal cart={cart} onClose={()=>setCheckoutOpen(false)} onConfirm={confirmOrder} />}
+      {successOrder && <SuccessPopup orderId={successOrder} onClose={()=>setSuccessOrder(null)} />}
+      
+      {viewedProduct && (
+        <ProductDetailsModal 
+          item={viewedProduct} 
+          onClose={() => setViewedProduct(null)} 
+          onAdd={addToCart} 
+          onBuyNow={handleBuyNow} 
+        />
+      )}
+    </div>
+  );
+};
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>

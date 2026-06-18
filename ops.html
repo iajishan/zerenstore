@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Zerén — Operations Management Workspace</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&family=Montserrat:wght@300;400;500;600&display=swap" rel="stylesheet" />
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --charcoal: #1a1a1a;
+    --matte-black: #0d0d0d;
+    --cream: #f5f0e8;
+    --gold: #c9a84c;
+    --gold-light: #e2c97e;
+    --white: #fafafa;
+    --mid-gray: #4a4a4a;
+    --light-gray: #888;
+  }
+  body { background: var(--matte-black); color: var(--cream); font-family: 'Montserrat', sans-serif; overflow-x: hidden; }
+  .font-display { font-family: 'Cormorant Garamond', serif; }
+  .gold { color: var(--gold); }
+  .bg-gold { background: var(--gold); }
+  
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: var(--matte-black); }
+  ::-webkit-scrollbar-thumb { background: var(--gold); border-radius: 2px; }
+
+  .nav-glass { background: rgba(13,13,13,0.92); backdrop-filter: blur(20px); border-bottom: 1px solid rgba(201,168,76,0.15); }
+  .dashboard-card { background: rgba(26,26,26,0.8); border: 1px solid rgba(201,168,76,0.1); transition: all 0.3s ease; }
+  .dashboard-card:hover { border-color: rgba(201,168,76,0.3); }
+  
+  .btn-gold { background: linear-gradient(135deg, var(--gold) 0%, var(--gold-light) 100%); color: var(--matte-black); font-weight: 600; letter-spacing: 0.1em; transition: all 0.3s ease; }
+  .btn-gold:hover { box-shadow: 0 0 20px rgba(201,168,76,0.3); }
+  
+  .btn-outline { border: 1px solid rgba(201,168,76,0.3); color: var(--gold); background: transparent; transition: all 0.3s ease; }
+  .btn-outline:hover { background: rgba(201,168,76,0.1); border-color: var(--gold); }
+  
+  .input-field { background: rgba(255,255,255,0.04); border: 1px solid rgba(201,168,76,0.2); color: var(--cream); width: 100%; transition: border-color 0.3s ease; outline: none; }
+  .input-field:focus { border-color: var(--gold); }
+  
+  .tab-btn { position: relative; transition: all 0.3s ease; }
+  .tab-btn.active { color: var(--gold); }
+  .tab-btn.active::after { content: ''; position: absolute; bottom: -21px; left: 0; right: 0; height: 2px; background: var(--gold); }
+
+  .admin-table th { background: rgba(201,168,76,0.08); color: var(--gold); font-size: 0.7rem; letter-spacing: 0.12em; text-transform: uppercase; border-bottom: 1px solid rgba(201,168,76,0.2); }
+  .admin-table td { border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 0.8rem; }
+  .admin-table tr:hover td { background: rgba(201,168,76,0.02); }
+
+  .status-badge { font-size: 0.65rem; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; border-radius: 2px; }
+  .status-pending { background: rgba(251,191,36,0.1); color: #fbbf24; border: 1px solid rgba(251,191,36,0.25); }
+  .status-processing { background: rgba(96,165,250,0.1); color: #60a5fa; border: 1px solid rgba(96,165,250,0.25); }
+  .status-shipped { background: rgba(52,211,153,0.1); color: #34d399; border: 1px solid rgba(52,211,153,0.25); }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel">
+const { useState, useEffect } = React;
+
+const API_URL = 'http://localhost:5000/api';
+const formatBDT = (amount) => `৳${(amount || 0).toLocaleString('en-BD')}`;
+
+const App = () => {
+  const [activeTab, setActiveTab] = useState('orders');
+  const [products, setProducts] = useState([]);
+  const [orders, setOrders] = useState([]);
+  const [loading, setLoading] = useState(true);
+  
+  const [newProdName, setNewProdName] = useState('');
+  const [newProdCat, setNewProdCat] = useState('Classic T-Shirts');
+  const [newProdPrice, setNewProdPrice] = useState('');
+  const [newProdStock, setNewProdStock] = useState('');
+  const [newProdDesc, setNewProdDesc] = useState('');
+  const [newProdImg, setNewProdImg] = useState(''); // Added Image State
+
+  const [editingOrder, setEditingOrder] = useState(null);
+  const [editName, setEditName] = useState('');
+  const [editPhone, setEditPhone] = useState('');
+  const [editAddress, setEditAddress] = useState('');
+  const [editThana, setEditThana] = useState('');
+  const [editItems, setEditItems] = useState([]);
+
+  const fetchLiveDatabase = async () => {
+    try {
+      const prodRes = await fetch(`${API_URL}/products`);
+      const orderRes = await fetch(`${API_URL}/orders`);
+      const pData = await prodRes.json();
+      const oData = await orderRes.json();
+      setProducts(pData);
+      setOrders(oData);
+      setLoading(false);
+    } catch (err) {
+      console.error("Database connection dropped:", err);
+    }
+  };
+
+  useEffect(() => {
+    fetchLiveDatabase();
+    const autoRefreshInterval = setInterval(fetchLiveDatabase, 5000);
+    return () => clearInterval(autoRefreshInterval);
+  }, []);
+
+  const toggleOrderStatus = async (orderId) => {
+    try {
+      const res = await fetch(`${API_URL}/orders/${orderId}/status`, { method: 'PATCH' });
+      if (res.ok) fetchLiveDatabase();
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleDeleteOrder = async (orderId) => {
+    if (confirm("Are you certain you want to permanently delete order #" + orderId + " from the database? This action cannot be reversed.")) {
+      try {
+        const res = await fetch(`${API_URL}/orders/${orderId}`, { method: 'DELETE' });
+        if (res.ok) {
+          fetchLiveDatabase();
+        } else {
+          alert("Failed to delete order from server database.");
+        }
+      } catch (err) {
+        console.error("Error executing order deletion pipeline:", err);
+      }
+    }
+  };
+
+  const startEditing = (order) => {
+    setEditingOrder(order);
+    setEditName(order.name || order.customer || '');
+    setEditPhone(order.phone || '');
+    setEditAddress(order.address || '');
+    setEditThana(order.thana || '');
+    
+    const structuredItems = Array.isArray(order.items) 
+      ? order.items.map(i => ({ name: i.name, qty: parseInt(i.qty) || 1, price: parseInt(i.price) || 0 }))
+      : [{ name: order.items, qty: 1, price: order.total }];
+    setEditItems(structuredItems);
+  };
+
+  const handleEditItemQty = (index, change) => {
+    const updated = [...editItems];
+    updated[index].qty = Math.max(1, updated[index].qty + change);
+    setEditItems(updated);
+  };
+
+  const handleRemoveItemFromOrder = (index) => {
+    if (editItems.length === 1) return alert("An order must have at least one product!");
+    setEditItems(editItems.filter((_, i) => i !== index));
+  };
+
+  const handleAddItemToOrder = (product) => {
+    const existingIndex = editItems.findIndex(i => i.name === product.name);
+    if (existingIndex > -1) {
+      const updated = [...editItems];
+      updated[existingIndex].qty += 1;
+      setEditItems(updated);
+    } else {
+      setEditItems([...editItems, { name: product.name, qty: 1, price: product.price }]);
+    }
+  };
+
+  const handleSaveOrderChanges = async (e) => {
+    e.preventDefault();
+    const newTotal = editItems.reduce((acc, item) => acc + (item.price * item.qty), 0);
+
+    const updatedPayload = {
+      name: editName,
+      phone: editPhone,
+      address: editAddress,
+      thana: editThana,
+      items: editItems,
+      total: newTotal
+    };
+
+    try {
+      const res = await fetch(`${API_URL}/orders/${editingOrder.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updatedPayload)
+      });
+      if (res.ok) {
+        setEditingOrder(null);
+        fetchLiveDatabase();
+      } else {
+        alert("Failed to update order modifications on server.");
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleAddProduct = async (e) => {
+    e.preventDefault();
+    if (!newProdName || !newProdPrice || !newProdStock) return alert('Please fill all mandatory entries.');
+    try {
+      const res = await fetch(`${API_URL}/products`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          name: newProdName, 
+          category: newProdCat, 
+          price: parseInt(newProdPrice), 
+          stock: parseInt(newProdStock),
+          description: newProdDesc,
+          imageUrl: newProdImg // Added field
+        })
+      });
+      if (res.ok) {
+        setNewProdName('');
+        setNewProdPrice('');
+        setNewProdStock('');
+        setNewProdDesc('');
+        setNewProdImg('');
+        fetchLiveDatabase();
+      }
+    } catch (err) { console.error(err); }
+  };
+
+  const handleRemoveProduct = async (id) => {
+    if(confirm('Are you sure you want to completely remove this product from your shop listing?')) {
+      try {
+        const res = await fetch(`${API_URL}/products/${id}`, { method: 'DELETE' });
+        if (res.ok) fetchLiveDatabase();
+      } catch (err) { console.error(err); }
+    }
+  };
+
+  const adjustStock = async (id, amount) => {
+    try {
+      const res = await fetch(`${API_URL}/products/${id}/stock`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ amount })
+      });
+      if (res.ok) fetchLiveDatabase();
+    } catch (err) { console.error(err); }
+  };
+
+  const totalRevenue = products.reduce((acc, curr) => acc + (curr.price * (curr.sold || 0)), 0) + orders.reduce((acc,o) => o.status === 'Shipped' ? acc + o.total : acc, 0);
+  const totalItemsSold = products.reduce((acc, curr) => acc + (curr.sold || 0), 0);
+  const averageOrderValue = totalRevenue / (totalItemsSold || 1);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#0d0d0d]">
+        <div className="font-display text-2xl gold animate-pulse">Establishing Zérén Core Network Pipeline...</div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen flex flex-col justify-between">
+      <header className="nav-glass fixed top-0 left-0 right-0 z-50">
+        <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
+          <div className="font-display text-2xl gold font-semibold tracking-wider flex items-center gap-2">
+            Ƶ <span className="text-xs tracking-widest uppercase text-gray-400 font-sans font-light">Ops Panel</span>
+          </div>
+          <div className="flex items-center gap-8 h-full">
+            <button onClick={() => setActiveTab('orders')} className={`tab-btn text-xs tracking-widest uppercase font-medium h-full ${activeTab === 'orders' ? 'active' : 'text-gray-400 hover:text-white'}`}>Updates & Products</button>
+            <button onClick={() => setActiveTab('inventory')} className={`tab-btn text-xs tracking-widest uppercase font-medium h-full ${activeTab === 'inventory' ? 'active' : 'text-gray-400 hover:text-white'}`}>Inventory Manager</button>
+            <button onClick={() => setActiveTab('revenue')} className={`tab-btn text-xs tracking-widest uppercase font-medium h-full ${activeTab === 'revenue' ? 'active' : 'text-gray-400 hover:text-white'}`}>Revenue Dashboard</button>
+          </div>
+        </div>
+      </header>
+
+      <main className="flex-grow max-w-7xl w-full mx-auto px-6 pt-28 pb-16">
+        
+        {activeTab === 'orders' && (
+          <div className="space-y-12">
+            <div>
+              <h2 className="font-display text-3xl text-cream mb-2">Live Logistics & Tracking</h2>
+              <p className="text-xs text-gray-400 uppercase tracking-wider">Monitor orders, review contact endpoints, and modify invoice listings.</p>
+            </div>
+
+            <div className="overflow-x-auto rounded-sm border border-zinc-800/80">
+              <table className="admin-table w-full text-left border-collapse">
+                <thead>
+                  <tr>
+                    <th className="px-4 py-4">Order ID</th>
+                    <th className="px-4 py-4">Customer Details</th>
+                    <th className="px-4 py-4">Shipping Destination</th>
+                    <th className="px-4 py-4">Ordered Items</th>
+                    <th className="px-4 py-4">Total Amount</th>
+                    <th className="px-4 py-4 text-center">Control Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {orders.map(order => (
+                    <tr key={order.id} className="text-zinc-300">
+                      <td className="px-4 py-4 font-mono text-xs gold">#{order.id}</td>
+                      <td className="px-4 py-4">
+                        <div className="font-medium text-white">{order.name || order.customer}</div>
+                        <div className="text-xs font-mono text-zinc-400 mt-0.5">{order.phone || 'No Phone Data'}</div>
+                      </td>
+                      <td className="px-4 py-4 text-xs">
+                        <div className="text-zinc-300 truncate max-w-[200px]" title={order.address}>{order.address || 'N/A'}</div>
+                        <div className="text-gold uppercase tracking-wider text-[10px] mt-0.5">Thana: {order.thana || 'N/A'}</div>
+                      </td>
+                      <td className="px-4 py-4 text-xs text-zinc-400">
+                        {typeof order.items === 'string' ? order.items : order.items.map((i, idx) => (
+                          <div key={idx}>{i.name} <span className="text-gold font-mono">(x{i.qty})</span></div>
+                        ))}
+                      </td>
+                      <td className="px-4 py-4 font-display text-base text-amber-100">{formatBDT(order.total)}</td>
+                      <td className="px-4 py-4 space-y-1.5">
+                        <button 
+                          onClick={() => toggleOrderStatus(order.id)}
+                          className={`status-badge px-3 py-1 cursor-pointer transition-transform active:scale-95 block w-full text-center ${
+                            order.status === 'Shipped' ? 'status-shipped' : order.status === 'Processing' ? 'status-processing' : 'status-pending'
+                          }`}
+                        >
+                          {order.status} ↻
+                        </button>
+                        <div className="grid grid-cols-2 gap-1">
+                          <button 
+                            onClick={() => startEditing(order)}
+                            className="text-[9px] uppercase font-semibold text-zinc-300 hover:text-gold text-center tracking-wider border border-zinc-800 hover:border-gold/40 py-1 transition-all rounded bg-neutral-900"
+                          >
+                            Edit
+                          </button>
+                          <button 
+                            onClick={() => handleDeleteOrder(order.id)}
+                            className="text-[9px] uppercase font-semibold text-red-400/80 hover:text-red-400 text-center tracking-wider border border-red-950/60 hover:border-red-500/40 py-1 transition-all rounded bg-red-950/10"
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {editingOrder && (
+              <div className="fixed inset-0 bg-black/80 backdrop-filter backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                <div className="bg-[#141414] border border-gold/20 w-full max-w-2xl p-6 rounded-sm shadow-2xl overflow-y-auto max-h-[90vh] space-y-6">
+                  <div className="flex justify-between items-center border-b border-zinc-800 pb-3">
+                    <h3 className="font-display text-2xl gold">Modifying Invoice Order #{editingOrder.id}</h3>
+                    <button onClick={() => setEditingOrder(null)} className="text-zinc-400 hover:text-white text-xl font-light">&times;</button>
+                  </div>
+
+                  <form onSubmit={handleSaveOrderChanges} className="space-y-4 text-xs">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-zinc-400 mb-1 uppercase tracking-wider">Customer Name</label>
+                        <input type="text" className="input-field px-3 py-2" value={editName} onChange={e => setEditName(e.target.value)} required />
+                      </div>
+                      <div>
+                        <label className="block text-zinc-400 mb-1 uppercase tracking-wider">Phone Number</label>
+                        <input type="text" className="input-field px-3 py-2 font-mono" value={editPhone} onChange={e => setEditPhone(e.target.value)} required />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-4">
+                      <div className="col-span-2">
+                        <label className="block text-zinc-400 mb-1 uppercase tracking-wider">Street Address</label>
+                        <input type="text" className="input-field px-3 py-2" value={editAddress} onChange={e => setEditAddress(e.target.value)} required />
+                      </div>
+                      <div>
+                        <label className="block text-zinc-400 mb-1 uppercase tracking-wider">Thana Area</label>
+                        <input type="text" className="input-field px-3 py-2 text-gold uppercase font-semibold" value={editThana} onChange={e => setEditThana(e.target.value)} required />
+                      </div>
+                    </div>
+
+                    <div className="border-t border-zinc-800/80 pt-4 space-y-3">
+                      <h4 className="text-zinc-400 uppercase tracking-widest font-semibold text-[10px]">Cart Composition Mapping</h4>
+                      
+                      <div className="space-y-2 bg-black/30 p-3 border border-zinc-900 rounded">
+                        {editItems.map((item, index) => (
+                          <div key={index} className="flex items-center justify-between text-sm py-1 border-b border-zinc-900 last:border-0">
+                            <span className="text-zinc-200">{item.name} <span className="text-zinc-500 font-mono text-xs">({formatBDT(item.price)})</span></span>
+                            <div className="flex items-center gap-4">
+                              <div className="flex items-center gap-1.5">
+                                <button type="button" onClick={() => handleEditItemQty(index, -1)} className="w-6 h-6 border border-zinc-700 hover:border-zinc-500 flex items-center justify-center font-bold text-xs">-</button>
+                                <span className="w-8 text-center font-mono text-white text-xs">{item.qty}</span>
+                                <button type="button" onClick={() => handleEditItemQty(index, 1)} className="w-6 h-6 border border-zinc-700 hover:border-zinc-500 flex items-center justify-center font-bold text-xs">+</button>
+                              </div>
+                              <button type="button" onClick={() => handleRemoveItemFromOrder(index)} className="text-red-400 hover:text-red-500 text-xs uppercase font-medium tracking-wider px-2">Delete</button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                      
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] uppercase text-zinc-500 tracking-wider block">Add Items from Active Inventory Pool:</label>
+                        <div className="flex flex-wrap gap-1.5 max-h-[100px] overflow-y-auto border border-zinc-900 p-2 bg-black/10">
+                          {products.map(p => (
+                            <button key={p.id} type="button" onClick={() => handleAddItemToOrder(p)} className="text-[10px] bg-zinc-900 text-zinc-300 border border-zinc-800 px-2 py-1 hover:border-gold/40 hover:text-white transition-all">
+                              + {p.name}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="text-right font-display text-lg gold pt-2 border-t border-zinc-800">
+                        Estimated Recalculated Gross: {formatBDT(editItems.reduce((acc, item) => acc + (item.price * item.qty), 0))}
+                      </div>
+                    </div>
+
+                    <div className="flex justify-end gap-3 pt-2">
+                      <button type="button" onClick={() => setEditingOrder(null)} className="btn-outline px-4 py-2 uppercase tracking-widest text-[10px] rounded-sm">Cancel</button>
+                      <button type="submit" className="btn-gold px-6 py-2 uppercase tracking-widest text-[10px] rounded-sm">Commit Changes</button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            )}
+
+            <div className="grid lg:grid-cols-3 gap-8 pt-6">
+              <div className="lg:col-span-2 space-y-4">
+                <h3 className="font-display text-2xl text-cream">Global Active Products Listing</h3>
+                <div className="overflow-x-auto rounded-sm border border-zinc-800/80">
+                  <table className="admin-table w-full text-left border-collapse">
+                    <thead>
+                      <tr>
+                        <th className="px-4 py-3">Item Name</th>
+                        <th className="px-4 py-3">Category</th>
+                        <th className="px-4 py-3">Base Cost</th>
+                        <th className="px-4 py-3">Description Preview</th>
+                        <th className="px-4 py-3 text-center">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {products.map(product => (
+                        <tr key={product.id} className="text-zinc-300">
+                          <td className="px-4 py-3 text-sm font-medium text-white">{product.name}</td>
+                          <td className="px-4 py-3 text-xs uppercase tracking-wider text-zinc-500">{product.category}</td>
+                          <td className="px-4 py-3 gold font-medium">{formatBDT(product.price)}</td>
+                          <td className="px-4 py-3 text-xs text-zinc-400 max-w-[220px] truncate" title={product.description}>
+                            {product.description || <span className="text-zinc-600 italic">No description set</span>}
+                          </td>
+                          <td className="px-4 py-3 text-center">
+                            <button onClick={() => handleRemoveProduct(product.id)} className="text-xs uppercase font-medium text-red-400/80 hover:text-red-400 tracking-widest px-2 py-1 border border-red-900/40 hover:border-red-500/40 rounded bg-red-950/20 transition-all">Remove</button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <div className="dashboard-card p-6 rounded-sm space-y-4 h-fit">
+                <h3 className="font-display text-xl text-gold">Add New Product Entry</h3>
+                <form onSubmit={handleAddProduct} className="space-y-4 text-xs">
+                  <div>
+                    <label className="block text-zinc-400 mb-1.5 uppercase tracking-wider">Product Title</label>
+                    <input type="text" className="input-field px-3 py-2.5 rounded-sm" placeholder="e.g., Premium Silk Blend Panjabi" value={newProdName} onChange={e => setNewProdName(e.target.value)} />
+                  </div>
+                  <div>
+                    <label className="block text-zinc-400 mb-1.5 uppercase tracking-wider">Category Classification</label>
+                    <select className="input-field px-3 py-2.5 rounded-sm bg-neutral-900" value={newProdCat} onChange={e => setNewProdCat(e.target.value)}>
+                      <option value="Classic T-Shirts">Classic T-Shirts</option>
+                      <option value="Drop Shoulder">Drop Shoulder</option>
+                      <option value="Panjabi">Panjabi</option>
+                      <option value="Jerseys">Jerseys</option>
+                    </select>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-zinc-400 mb-1.5 uppercase tracking-wider">Retail Price (BDT)</label>
+                      <input type="number" className="input-field px-3 py-2.5 rounded-sm" placeholder="৳ Price" value={newProdPrice} onChange={e => setNewProdPrice(e.target.value)} />
+                    </div>
+                    <div>
+                      <label className="block text-zinc-400 mb-1.5 uppercase tracking-wider">Starting Stock</label>
+                      <input type="number" className="input-field px-3 py-2.5 rounded-sm" placeholder="Qty" value={newProdStock} onChange={e => setNewProdStock(e.target.value)} />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-zinc-400 mb-1.5 uppercase tracking-wider">Image URL</label>
+                    <input type="text" className="input-field px-3 py-2.5 rounded-sm" placeholder="https://example.com/photo.jpg" value={newProdImg} onChange={e => setNewProdImg(e.target.value)} />
+                  </div>
+                  <div>
+                    <label className="block text-zinc-400 mb-1.5 uppercase tracking-wider">Product Description</label>
+                    <textarea 
+                      className="input-field px-3 py-2.5 rounded-sm h-24 resize-none text-zinc-200" 
+                      placeholder="Enter fabric specs, cut details, drop collection configuration notes..." 
+                      value={newProdDesc} 
+                      onChange={e => setNewProdDesc(e.target.value)}
+                    />
+                  </div>
+                  <button type="submit" className="btn-gold w-full py-3 mt-2 text-xs uppercase rounded-sm">Deploy to Live Catalog</button>
+                </form>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'inventory' && (
+          <div className="space-y-8">
+            <div>
+              <h2 className="font-display text-3xl text-cream mb-2">Inventory Stock Ledger</h2>
+              <p className="text-xs text-gray-400 uppercase tracking-wider">Direct manual warehouse overrides. Track batch status updates instantly.</p>
+            </div>
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {products.map(product => (
+                <div key={product.id} className="dashboard-card p-5 rounded-sm flex flex-col justify-between space-y-6">
+                  <div>
+                    <div className="flex justify-between items-start mb-2">
+                      <span className="text-xs font-semibold tracking-wider text-zinc-500 uppercase">{product.category}</span>
+                      {product.stock <= 15 ? <span className="text-[10px] px-2 py-0.5 border border-red-500/30 text-red-400 bg-red-950/20 uppercase font-medium tracking-wide">Critical Low</span> : <span className="text-[10px] px-2 py-0.5 border border-emerald-500/30 text-emerald-400 bg-emerald-950/20 uppercase font-medium tracking-wide">Healthy Stock</span>}
+                    </div>
+                    <h3 className="font-display text-xl text-cream tracking-wide">{product.name}</h3>
+                    <p className="text-xs gold mt-1">Listed Base Value: {formatBDT(product.price)}</p>
+                  </div>
+                  <div className="bg-black/40 border border-zinc-800/60 p-4 rounded-sm flex items-center justify-between">
+                    <div>
+                      <p className="text-[10px] text-zinc-500 uppercase tracking-widest">Available Units</p>
+                      <p className="text-3xl font-display text-white mt-1 font-semibold">{product.stock}</p>
+                    </div>
+                    <div className="flex gap-2">
+                      <button onClick={() => adjustStock(product.id, -5)} className="btn-outline w-10 h-10 rounded flex items-center justify-center font-bold text-sm">-5</button>
+                      <button onClick={() => adjustStock(product.id, -1)} className="btn-outline w-10 h-10 rounded flex items-center justify-center font-bold text-sm">-1</button>
+                      <button onClick={() => adjustStock(product.id, 1)} className="btn-gold w-10 h-10 rounded flex items-center justify-center font-bold text-sm">+1</button>
+                      <button onClick={() => adjustStock(product.id, 5)} className="btn-gold w-10 h-10 rounded flex items-center justify-center font-bold text-sm">+5</button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'revenue' && (
+          <div className="space-y-10">
+            <div>
+              <h2 className="font-display text-3xl text-cream mb-2">Financial Architecture & Performance</h2>
+              <p className="text-xs text-gray-400 uppercase tracking-wider">Historical records mixed with live calculated platform statistics.</p>
+            </div>
+            <div className="grid sm:grid-cols-3 gap-6">
+              <div className="dashboard-card p-6 rounded-sm relative overflow-hidden">
+                <p className="text-xs tracking-widest uppercase text-zinc-500">Gross Income Yield</p>
+                <p className="font-display text-4xl gold mt-3 font-medium">{formatBDT(totalRevenue)}</p>
+                <div className="absolute top-4 right-4 text-xs text-emerald-400 font-mono">+14.2%</div>
+              </div>
+              <div className="dashboard-card p-6 rounded-sm relative overflow-hidden">
+                <p className="text-xs tracking-widest uppercase text-zinc-500">Aggregate Items Moved</p>
+                <p className="font-display text-4xl text-zinc-200 mt-3 font-medium">{totalItemsSold} Units</p>
+                <div className="absolute top-4 right-4 text-xs text-zinc-500 font-mono">Volume</div>
+              </div>
+              <div className="dashboard-card p-6 rounded-sm relative overflow-hidden">
+                <p className="text-xs tracking-widest uppercase text-zinc-500">Average Value / Order</p>
+                <p className="font-display text-4xl text-zinc-200 mt-3 font-medium">{formatBDT(Math.round(averageOrderValue))}</p>
+                <div className="absolute top-4 right-4 text-xs text-gold font-mono">AOV</div>
+              </div>
+            </div>
+            <div className="space-y-4">
+              <h3 className="font-display text-2xl text-cream">Profit Optimization Breakdown</h3>
+              <div className="dashboard-card p-6 rounded-sm">
+                <div className="space-y-6">
+                  {products.map(product => {
+                    const productRevenue = product.price * (product.sold || 0);
+                    const revenuePercent = totalRevenue > 0 ? (productRevenue / totalRevenue) * 100 : 0;
+                    return (
+                      <div key={product.id} className="space-y-2">
+                        <div className="flex justify-between text-sm">
+                          <span className="text-zinc-300 font-light">{product.name} <span className="text-zinc-500 text-xs">({product.sold || 0} sold)</span></span>
+                          <span className="gold font-mono">{formatBDT(productRevenue)}</span>
+                        </div>
+                        <div className="w-full h-1.5 bg-neutral-900 rounded-full overflow-hidden">
+                          <div className="h-full bg-gradient-to-right from-amber-600 to-yellow-400 transition-all duration-500" style={{ width: `${revenuePercent}%`, backgroundColor: 'var(--gold)' }}></div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+      </main>
+
+      <footer className="py-8 px-6 text-center bg-[#080808] border-t border-zinc-900/60">
+        <div className="font-display text-xl gold mb-1">Ƶerén Core Engineering</div>
+        <p className="text-[10px] uppercase tracking-widest text-zinc-600">Enterprise Administrative Terminal — Confidential Access Only</p>
+      </footer>
+    </div>
+  );
+};
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>

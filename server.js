@@ -182,7 +182,11 @@ app.delete('/api/orders/:id', (req, res) => {
     return res.status(404).json({ error: "Targeted order entry not found." });
   }
 });
-
+const path = require('path');
+app.use(express.static(path.join(__dirname)));
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'index.html'));
+});
 app.listen(PORT, () => {
   console.log(`=================================================`);
   console.log(` Ƶ ZERÉN ENGINE PIPELINE ONLINE ON PORT: ${PORT} `);
